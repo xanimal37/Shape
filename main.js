@@ -42,6 +42,20 @@ window.addEventListener('load', function(){
             this.speedY=this.game.mouse.y - this.collisionY;
             this.collisionX +=this.speedX/20;
             this.collisionY +=this.speedY/20;
+            //horizontal boundaries
+            if(this.collisionX < + this.collisionRadius){
+                this.collisionX = this.collisionRadius;
+            }
+            else if (this.collisionX > this.game.width - this.collisionRadius){
+                this.collisionX = this.game.width-this.collisionRadius;
+            }
+            //vertical boundaries
+            if(this.collisionY<this.collisionRadius){
+                this.collisionY = this.collisionRadius;
+            }
+            else if(this.collisionY>this.game.height-this.collisionRadius){
+                this.collisionY = this.game.height-this.collisionRadius;
+            }
             //check for obstacle collision
             this.game.obstacles.forEach(obstacle=>{
                 //[(distance < sumOfRadii),distance, sumOfRadii,dx,dy]
@@ -51,7 +65,8 @@ window.addEventListener('load', function(){
                 if(collision){
                     const unit_x = dx/distance; //will always be 0 - 1 or neg
                     const unit_y = dy/distance; //will always be 0 - 1 or neg
-                    console.log(unit_x,unit_y);
+                    this.collisionX = obstacle.collisionX + (sumOfRadii+1) * unit_x;
+                    this.collisionY = obstacle.collisionY + (sumOfRadii+1) * unit_y;
                 }
             });
         }
@@ -106,8 +121,10 @@ window.addEventListener('load', function(){
         });
 
         canvas.addEventListener('mousemove',e=>{ //or use this but arrow is automatic ES6
+           if(this.mouse.pressed){
             this.mouse.x = e.offsetX;
             this.mouse.y = e.offsetY;
+           }
         });
         }
 
