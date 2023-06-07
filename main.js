@@ -42,6 +42,18 @@ window.addEventListener('load', function(){
             this.speedY=this.game.mouse.y - this.collisionY;
             this.collisionX +=this.speedX/20;
             this.collisionY +=this.speedY/20;
+            //check for obstacle collision
+            this.game.obstacles.forEach(obstacle=>{
+                //[(distance < sumOfRadii),distance, sumOfRadii,dx,dy]
+                //destructuring assignemnt
+                //javascript - shorthand for assigning variables from an array
+                let [collision,distance,sumOfRadii,dx,dy] = this.game.checkCollision(this,obstacle);
+                if(collision){
+                    const unit_x = dx/distance; //will always be 0 - 1 or neg
+                    const unit_y = dy/distance; //will always be 0 - 1 or neg
+                    console.log(unit_x,unit_y);
+                }
+            });
         }
 
     }
@@ -100,17 +112,45 @@ window.addEventListener('load', function(){
         }
 
         render(context){
-            this.player.draw(context);
-            this.player.update();
             this.obstacles.forEach(obstacle=>{
                 obstacle.draw(context);
             });
+            this.player.draw(context);
+            this.player.update();
+        }
+
+        checkCollision(a, b){
+            const dx = a.collisionX - b.collisionX;
+            const dy = a.collisionY - b.collisionY;
+            const distance = Math.hypot(dy, dx);
+            const sumOfRadii = a.collisionRadius + b.collisionRadius;
+            return [(distance < sumOfRadii),distance, sumOfRadii,dx,dy];
         }
 
         init(){
-            for(let i=0;i<this.numberOfObstacles;i++){
-                this.obstacles.push(new Obstacle(this));
+            //make sure obstacles don't touch
+            //brute force method, circle packing
+            let attempts = 0;
+            while(this.obstacles.length<this.numberOfObstacles && attempts<300){
+                let testObstacle = new Obstacle(this);
+                let overlap = false;
+                this.obstacles.forEach(obstacle => {
+                    const dx = testObstacle.collisionX - obstacle.collisionX;
+                    const dy = testObstacle.collisionY - obstacle.collisionY;
+                    const distance = Math.hypot(dy,dx);
+                    const distanceBuffer =100;//min dist obstacles must be apart
+                    const sumOfRadii = testObstacle.collisionRadius + obstacle.collisionRadius+distanceBuffer;
+                    if(distance<sumOfRadii){
+                        overlap =true;
+                    }
+                });
+                if(!overlap){
+                    this.obstacles.push(testObstacle);
+                }
+                attempts++;
             }
+            
+            //
         }
 
         
