@@ -96,6 +96,11 @@ window.addEventListener('load', function(){
         this.height = this.canvas.height;
         this.player = new Player(this); //pass itself to new player
 
+        //refresh rate and game time
+        this.fps = 64;
+        this.timer = 0;
+        this.interval = 1000/this.fps; //ms needed to achieve fps
+
         //obstacle initialization
         this.numberOfObstacles = 5;
         this.obstacles = [];
@@ -128,12 +133,20 @@ window.addEventListener('load', function(){
         });
         }
 
-        render(context){
-            this.obstacles.forEach(obstacle=>{
-                obstacle.draw(context);
-            });
-            this.player.draw(context);
-            this.player.update();
+        render(context, deltaTime){
+            if(this.timer > this.interval){
+                ctxt.clearRect(0,0,canvas.width, canvas.height); 
+                //animate next frame
+                this.obstacles.forEach(obstacle=>{
+                    obstacle.draw(context);
+                });
+                this.player.draw(context);
+                this.player.update();
+
+                this.timer =0;
+            }
+            this.timer+=deltaTime;
+            
         }
 
         checkCollision(a, b){
@@ -177,11 +190,17 @@ window.addEventListener('load', function(){
     const game = new Game(canvas);
     game.init();
    
-    function animate(){
-        ctxt.clearRect(0,0,canvas.width, canvas.height);
-        game.render(ctxt);
+    let lastTime =0; //timestamp from previous loop
+    function animate(timeStamp){
+        const deltaTime = timeStamp - lastTime;
+        lastTime = timeStamp;
+        //console.log(deltaTime); //16 is average (16.6 or so)
+        game.render(ctxt, deltaTime);
+        //automaticlaly adjusts to screen refresh rate (60fps)
+        //newer rigs can go much faster
+        //use delta time to even it out (like in unity)
         requestAnimationFrame(animate);
     }
 
-    animate();
+    animate(0); //prevents NaN on first call
 });
