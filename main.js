@@ -3,11 +3,12 @@ window.addEventListener('load', function(){
 
     const canvas = document.getElementById('mainCanvas');
     const ctxt = canvas.getContext('2d');
-    canvas.width=800;
-    canvas.height=600;
+    canvas.width=window.innerWidth;
+    canvas.height=window.innerHeight;
+    //default draw settings
     ctxt.lineWidth = 2;
     ctxt.fillStyle = 'white';
-    ctxt.strokeStyle = 'red';
+    ctxt.strokeStyle = 'white';
 
     //OOP!
     //would be better to put in modules or different scripts if have a server
@@ -15,14 +16,69 @@ window.addEventListener('load', function(){
 
         constructor(game){
             this.game = game;
+        }
+
+    }
+
+    //the square player can't move but can rotate
+    //if circle hits a corner, circle will take damage
+    class SquarePlayer extends Player {
+
+        constructor(game){
+            super(game);
+            //initial location in center of game window
             this.collisionX = this.game.width * 0.5;
             this.collisionY = this.game.height * 0.5;
+            //initial size
+            this.sideLength = 100;
+            this.color = 'blue';
+            this.angle=0;
+        }
+
+        //draw shape
+        draw(context){
+            context.save();
+            context.translate(this.collisionX+this.sideLength/2,this.collisionY+this.sideLength/2);
+            context.rotate(this.angle * Math.PI/360);
+            context.strokeRect(-this.sideLength/2,-this.sideLength/2,this.sideLength,this.sideLength);
+            context.restore();
+            }
+
+        update(){
+            //test
+            if(this.game.squareState.rotating){
+                if(this.game.squareState.clockwise){
+                    this.angle++;
+                }
+                else {
+                    this.angle--;
+                }
+            }
+            
+            //check for collisions
+        }
+    }
+
+    //if circle hits flat side of square, square will take damage
+    //circle can move
+    class CirclePlayer extends Player {
+
+        constructor(game){
+            super(game);
+            //randomize location (one of four 'corners')
+            this.locations = [
+                [this.game.width * 0.33,this.game.height * 0.33],
+                [this.game.width * 0.33,this.game.height * 0.66],
+                [this.game.width * 0.33,this.game.height * 0.66],
+                [this.game.width * 0.66,this.game.height * 0.66]
+            ];
+            this.collisionX = this.locations[0][0];
+            this.collisionY = this.locations[0][1];
             this.collisionRadius = 30;
             this.speedX = 0;
             this.speedY = 0;
         }
 
-        //methods
         draw(context){
             context.beginPath();
             context.arc(this.collisionX,this.collisionY,this.collisionRadius,0,Math.PI * 2);
@@ -36,7 +92,6 @@ window.addEventListener('load', function(){
             context.lineTo(this.game.mouse.x, this.game.mouse.y);
             context.stroke();
         }
-
         update(){
             this.speedX=this.game.mouse.x - this.collisionX;
             this.speedY=this.game.mouse.y - this.collisionY;
@@ -56,7 +111,8 @@ window.addEventListener('load', function(){
             else if(this.collisionY>this.game.height-this.collisionRadius){
                 this.collisionY = this.game.height-this.collisionRadius;
             }
-            //check for obstacle collision
+
+            /*check for player collision
             this.game.obstacles.forEach(obstacle=>{
                 //[(distance < sumOfRadii),distance, sumOfRadii,dx,dy]
                 //destructuring assignemnt
@@ -69,24 +125,10 @@ window.addEventListener('load', function(){
                     this.collisionY = obstacle.collisionY + (sumOfRadii+1) * unit_y;
                 }
             });
+            */
         }
 
-    }
-
-    class Obstacle {
-        constructor(game){
-            this.game= game;
-            //randomize position
-            this.collisionX = Math.random() * this.game.width;
-            this.collisionY = Math.random() * this.game.height;
-            this.collisionRadius = 60;
-        }
-
-        draw(context){
-            context.beginPath();
-            context.arc(this.collisionX,this.collisionY,this.collisionRadius,0,Math.PI * 2);
-            context.fill();
-        }
+        
     }
 
     class Game {
@@ -94,25 +136,29 @@ window.addEventListener('load', function(){
         this.canvas = canvas;
         this.width = this.canvas.width;
         this.height = this.canvas.height;
-        this.player = new Player(this); //pass itself to new player
+        this.squarePlayer = new SquarePlayer(this); //pass itself to new player
+        this.circlePlayer = new CirclePlayer(this); //pass itself to new player
 
         //refresh rate and game time
         this.fps = 64;
         this.timer = 0;
         this.interval = 1000/this.fps; //ms needed to achieve fps
 
-        //obstacle initialization
-        this.numberOfObstacles = 5;
-        this.obstacles = [];
-
-        //mouse object
+        //mouse object - controls circle player
         this.mouse = {
             x:this.width *0.5,
             y:this.height*0.5,
             pressed: false
         }
 
+        //key object (made up to handle key state) - controls square player
+        this.squareState = {
+            rotating:false,
+            clockwise: true
+        }
+
         //event listeners
+        //events for circle player
         canvas.addEventListener('mousedown',e=>{
             this.mouse.x = e.offsetX;
             this.mouse.y = e.offsetY;
@@ -131,18 +177,44 @@ window.addEventListener('load', function(){
             this.mouse.y = e.offsetY;
            }
         });
+
+        //events for square player
+        //window for keys
+        window.addEventListener('keydown',e=>{
+            console.log("KEY PRESSED");
+            switch(e.key){
+            case 'A':
+            case 'a':
+                console.log('pressed a!');
+                this.squareState.rotating=true;
+                this.squareState.clockwise=false;
+                break;
+            case 'D':
+            case 'd':
+                console.log('pressed d!');
+                this.squareState.rotating=true;
+                this.squareState.clockwise=true;
+                break;
+            default:
+                break;
+            }
+        });
+
+        window.addEventListener('keyup',e=>{
+            this.squareState.rotating=false;
+        });
+
         }
 
         render(context, deltaTime){
             if(this.timer > this.interval){
                 ctxt.clearRect(0,0,canvas.width, canvas.height); 
                 //animate next frame
-                this.obstacles.forEach(obstacle=>{
-                    obstacle.draw(context);
-                });
-                this.player.draw(context);
-                this.player.update();
-
+                this.squarePlayer.draw(context);
+                this.squarePlayer.update(context);
+                this.circlePlayer.draw(context);
+                this.circlePlayer.update(context);
+            
                 this.timer =0;
             }
             this.timer+=deltaTime;
@@ -158,33 +230,9 @@ window.addEventListener('load', function(){
         }
 
         init(){
-            //make sure obstacles don't touch
-            //brute force method, circle packing
-            let attempts = 0;
-            while(this.obstacles.length<this.numberOfObstacles && attempts<300){
-                let testObstacle = new Obstacle(this);
-                let overlap = false;
-                this.obstacles.forEach(obstacle => {
-                    const dx = testObstacle.collisionX - obstacle.collisionX;
-                    const dy = testObstacle.collisionY - obstacle.collisionY;
-                    const distance = Math.hypot(dy,dx);
-                    const distanceBuffer =100;//min dist obstacles must be apart
-                    const sumOfRadii = testObstacle.collisionRadius + obstacle.collisionRadius+distanceBuffer;
-                    if(distance<sumOfRadii){
-                        overlap =true;
-                    }
-                });
-                if(!overlap){
-                    this.obstacles.push(testObstacle);
-                }
-                attempts++;
-            }
-            
-            //
+            //set player locations
+            //draw players
         }
-
-        
-
     }
 
     const game = new Game(canvas);
